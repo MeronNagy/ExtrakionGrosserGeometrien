@@ -155,12 +155,26 @@ public class LineString {
 		StringBuilder sb = new StringBuilder();
 		String str = "";
 		for(int i = 0; i<line.size(); i++) {
-			str += ("[" + line.get(i).toString() + "]" + ",");
+			sb.append("[" + line.get(i).toString() + "]" + ",");
 		}
-		//str = sb.toString();
+		str = sb.toString();
 		if(str.length() >= 1) {
 			str = str.substring(0, str.length()-1);
 		}
+		return str;
+	}
+	
+	public String toPostGIS() {
+		StringBuilder sb = new StringBuilder();
+		String str = "'LINESTRING(";
+		for(int i = 0; i<line.size(); i++) {
+			sb.append(line.get(i).toPostGIS() +",");
+		}
+		str += sb.toString();
+		if(str.length() >= 1) {
+			str = str.substring(0, str.length()-1);
+		}
+		str += ")'";
 		return str;
 	}
 	

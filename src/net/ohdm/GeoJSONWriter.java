@@ -81,4 +81,5 @@ public class GeoJSONWriter<T> {
 	    	return false;
 	    }
 	}
+	
 }

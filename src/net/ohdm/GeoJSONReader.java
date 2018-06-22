@@ -28,7 +28,7 @@ public class GeoJSONReader {
 		}
 	    String in;
 	    while ((in = r.readLine()) != null) {
-	    	in = in.replaceAll("[^\\.,0123456789]","");
+	    	in = in.replaceAll("[^\\.\\-,0123456789]","");
 	    	in = in.substring(1, in.length());
 	    	String[] strings = in.trim().split(",");
 	    	LineString line = new LineString();

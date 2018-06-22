@@ -3,10 +3,16 @@ package net.ohdm;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Properties;
 import java.util.Scanner;
 
 /**
@@ -39,6 +45,7 @@ public class Main {
 		System.out.println("Saving to 0.geojson");
 		System.out.println("Connecting smaller lines");
 		//Verbindet Linien die nur einen Partner haben miteinander
+	
 		for(int i = 0; i < lines.size(); i++) {
 			Point iHead = lines.get(i).getHead();
 			Point iTail = lines.get(i).getTail();
@@ -140,6 +147,8 @@ public class Main {
 		jsonWriter.writeFile(new File("3.geojson"), false, lines);
 		System.out.println("Saving to 3.geojson");
 		
+		//runQuery(lines);
+		
 		System.out.println("Testing Angle");
 		boolean[] lineChecked = new boolean[lines.size()];
 		ArrayList<LineString> lines2 = new ArrayList<LineString>(lines);
@@ -228,7 +237,7 @@ public class Main {
 		/* 1. Connect smaller lines to big lines FINISHED
 		 * 2. Delete repeating values
 		 * 2. check if geojson.io looks the same
-		 * 3. Separate Polygons? Keep Lines yes/no
+		 * ?. Separate Polygons? Keep Lines yes/no
 		 * 4. Connect via angle, Problem: some lines are identical
 		 * ?. Upload to DB
 		 *  
@@ -245,5 +254,38 @@ public class Main {
 	    double angle2 = Math.atan2(point2Y - fixedY, point2X - fixedX);
 
 	    return angle1 - angle2; 
+	}
+	public static boolean runQuery(ArrayList<LineString> lines) {
+		Connection c = null;
+	      Statement stmt = null;
+	      try {
+	         Class.forName("org.postgresql.Driver");
+	         //ohdm_public DB
+	         Properties login = new Properties();
+	         try (FileReader in = new FileReader("login.properties")) {
+	        	    login.load(in);
+	         }
+	         String database = login.getProperty("testdb");
+	         String username = login.getProperty("username");
+	         String password = login.getProperty("password");
+	         c = DriverManager
+	            .getConnection("jdbc:" + database , username, password);
+	         c.setAutoCommit(false);
+	         System.out.println("Opened database successfully");
+	         System.out.println("Inserting LineStrings");
+	         stmt = c.createStatement();
+	         for(int i = 0; i < lines.size(); i++) {
+	        	 System.out.println(i + "/" + lines.size());
+		         stmt.executeUpdate( "INSERT INTO sose2018.lines_admin_2(line) VALUES (ST_GeomFromText("+lines.get(i).toPostGIS()+"));" );     
+	         }
+	         stmt.close();
+	         c.commit();
+	         c.close();
+	      } catch ( Exception e ) {
+	         System.err.println( e.getClass().getName()+": "+ e.getMessage() );
+	         return false;
+	      }
+	      System.out.println("INSERT successful");
+	      return true;
 	}
 }

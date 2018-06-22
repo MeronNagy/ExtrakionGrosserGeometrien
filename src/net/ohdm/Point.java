@@ -41,6 +41,11 @@ public class Point {
 		sb.append(latitude + "," + longitude);
 		return sb.toString();
 	}
+	public String toPostGIS() {
+		StringBuilder sb = new StringBuilder();
+		sb.append(latitude + " " + longitude);
+		return sb.toString();
+	}
 	/**
 	 * Indicates whether some other Point is "equal to" this one.
 	 * Returns true only if the longitudes and latitudes of both Points are equal.
