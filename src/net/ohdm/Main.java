@@ -28,17 +28,19 @@ public class Main {
 		ArrayList<LineString> lines = new ArrayList<LineString>();
 		//GeoJSONReader
 		GeoJSONReader jsonReader = new GeoJSONReader();
-
+		GeoJSONWriter<LineString> jsonWriter = new GeoJSONWriter<LineString>();
 		//DB Connection
 		//PostgreSQLJDBC.run();
 		
 		//Import der Linien
+		
+		/*
 		try {
 			lines = jsonReader.readFile("raw.json");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		GeoJSONWriter<LineString> jsonWriter = new GeoJSONWriter<LineString>();
+		
 		jsonWriter.writeFile(new File("0.geojson"), false, lines);
 		//---------------------1. connect smaller lines to bigger lines------------------------
 		System.out.println("Imported " + lines.size() + " LineStrings from raw.json");
@@ -147,22 +149,30 @@ public class Main {
 		jsonWriter.writeFile(new File("3.geojson"), false, lines);
 		System.out.println("Saving to 3.geojson");
 		
-		//runQuery(lines);
+		runQuery(lines);
+		*/
+		
+		
+		lines.clear();
+		getShortLines(lines);
 		
 		System.out.println("Testing Angle");
 		boolean[] lineChecked = new boolean[lines.size()];
-		ArrayList<LineString> lines2 = new ArrayList<LineString>(lines);
+		ArrayList<Integer> linesIndex = new ArrayList<Integer>();
+		LineString line = null;
 		for(int i = 0; i < lines.size(); i++) {
-			lineChecked[i] = true;	
-			
-			if(i == 1) {
-			//	break;
+			if(linesIndex.isEmpty()) {
+				linesIndex.add(i);
 			}
+			if(line == null) {
+				line = lines.get(i);
+			}
+			lineChecked[i] = true;	
 			
 			int jIndex = i;
 			double angle = 360;
-			Point iHead = lines2.get(i).getHead();
-			Point iTail = lines2.get(i).getTail();
+			Point iHead = lines.get(i).getHead();
+			Point iTail = lines.get(i).getTail();
 			int direction = 0;
 			for(int j = 0; j < lines.size(); j++) {
 				Point jHead = lines.get(j).getHead();
@@ -205,35 +215,32 @@ public class Main {
 			}
 			if(i != jIndex) {
 				lineChecked[jIndex] = true;
-				LineString lineI = lines2.get(i);
 				LineString lineJ = lines.get(jIndex);
 				if(direction == 1) {
 					lineJ.reverseOrder();
-					lineI.appendHead(lineJ);
+					line.appendHead(lineJ.getLineString().get(1));
+					line.appendHead(lineJ.getLineString().get(0));
+					linesIndex.add(jIndex);
 				}else if(direction == 2) {
-					lineI.appendHead(lineJ);
-				}else if(direction == 3) {
-					lineI.appendTail(lineJ);
-				}else if(direction == 4) {
-					lineJ.reverseOrder();
-					lineI.appendTail(lineJ);		
+					line.appendHead(lineJ.getLineString().get(1));
+					line.appendHead(lineJ.getLineString().get(0));
+					linesIndex.add(jIndex);
+				}else {
+					i++;
 				}
 				i--;
 			}else {
-				System.out.println(i + "/" + lines.size());
-				if(!jsonWriter.writeFile(new File("geoms/" + i +".geojson"), false, lines2.get(i))) {
-					System.out.println("failed to save geometry");
-					break;
-				}
-				//jsonWriter.writeFile(new File("4.geojson"), true, lines.get(0));
-				//lines.remove(lines.get(0));
+				System.out.println(i+1 + "/" + lines.size());
+				uploadPolygon(linesIndex);
+				linesIndex.clear();
+				line = null;
 				Arrays.fill(lineChecked,false);	
 				//i--;
 			}	
 		}
-		System.out.println(lines.size());
-		//jsonWriter.writeFile(new File("3.geojson"), true, lines);
-		System.out.println("Saving to geoms/");
+		
+		
+		System.out.println("Saving to DB");
 		/* 1. Connect smaller lines to big lines FINISHED
 		 * 2. Delete repeating values
 		 * 2. check if geojson.io looks the same
@@ -246,6 +253,112 @@ public class Main {
 		 * 
 		 */
 	}	
+	private static boolean uploadPolygon(ArrayList<Integer> linesIndex) {
+		Connection c = null;
+	      Statement stmt = null;
+	      try {
+	         Class.forName("org.postgresql.Driver");
+	         //ohdm_public DB
+	         Properties login = new Properties();
+	         try (FileReader in = new FileReader("login.properties")) {
+	        	    login.load(in);
+	         }
+	         String database = login.getProperty("testdb");
+	         String username = login.getProperty("username");
+	         String password = login.getProperty("password");
+	         c = DriverManager
+	            .getConnection("jdbc:" + database , username, password);
+	         c.setAutoCommit(false);
+	         System.out.println("Opened database successfully");
+	         System.out.println("Inserting LineStrings");
+	         stmt = c.createStatement();
+	         String selectPolygon = "(SELECT polygon FROM sose2018.polygons_admin_2 WHERE index = " + linesIndex.get(0) + ")";
+	         for(int i = 0; i < linesIndex.size(); i++) {	 
+	        	 if(i == 0) {
+	        		 String selectLine = "(SELECT line FROM sose2018.lines_admin_2 WHERE index = " + linesIndex.get(0) + ")";
+	        		 stmt.executeUpdate( "INSERT INTO sose2018.polygons_admin_2(index, polygon) "
+	 	        	 		+ "VALUES (" + 	linesIndex.get(0) + ", " + selectLine + ");" );     
+	        	 }else {
+	        		 
+	        		 String selectLine = ",(SELECT line FROM sose2018.lines_admin_2 WHERE index = " + linesIndex.get(i) + ")";
+	        		 stmt.executeUpdate( "UPDATE sose2018.polygons_admin_2 SET polygon = ST_LineMerge(ST_Multi(St_Collect(" 
+	        				 + selectPolygon + selectLine + "))) WHERE index = " + linesIndex.get(0) + ";");
+	        	 }
+	         }
+	         stmt.executeUpdate( "UPDATE sose2018.polygons_admin_2 SET polygon = ST_BuildArea(" 
+    				 + selectPolygon + ") WHERE index = " + linesIndex.get(0) + ";");
+	         stmt.close();
+	         c.commit();
+	         c.close();
+	      } catch ( Exception e ) {
+	         System.err.println( e.getClass().getName()+": "+ e.getMessage() );
+	         return false;
+	      }
+	      System.out.println("INSERT successful");
+	      return true;
+		
+	}
+	private static boolean getShortLines(ArrayList<LineString> lines) {
+		Connection c = null;
+	      Statement stmt = null;
+	      try {
+	         Class.forName("org.postgresql.Driver");
+	         //ohdm_public DB
+	         Properties login = new Properties();
+	         try (FileReader in = new FileReader("login.properties")) {
+	        	    login.load(in);
+	         }
+	         String database = login.getProperty("testdb");
+	         String username = login.getProperty("username");
+	         String password = login.getProperty("password");
+	         c = DriverManager
+	            .getConnection("jdbc:" + database , username, password);
+	         c.setAutoCommit(false);
+	         System.out.println("Opened database successfully");
+	         System.out.println("Getting row count");
+	         stmt = c.createStatement();
+	         ResultSet count = stmt.executeQuery( "SELECT count(index) as rows FROM sose2018.lines_admin_2;");
+	         count.next();
+	         int rows = Integer.parseInt(count.getString("rows"));
+	         count.close();
+	         for(int i = 0; i < rows; i++) {
+	        	 System.out.println(i + "/" + rows);
+	        	 ResultSet head = stmt.executeQuery( "SELECT substring(ST_AsText(line), '-?[0-9]*\\.?[0-9]*?\\s-?[0-9]*\\.?[0-9]*?,-?[0-9]*\\.?[0-9]*?\\s-?[0-9]*\\.?[0-9]*?') as line FROM sose2018.lines_admin_2 WHERE index = " + i + ";");
+	        	 LineString  ls = new LineString();
+	        	 while ( head.next() ) {
+	        		 String line;
+	        		 line = head.getString("line");
+	        		 String[] strings = line.trim().split(",");
+	        		 for(String s : strings) {
+	        			 Point p = new Point(Double.parseDouble(s.substring(0,s.indexOf(' '))), Double.parseDouble(s.substring(s.indexOf(' ')+1,s.length())));
+	        			 ls.appendTail(p);
+	        		 }	 	                
+	 	         }
+	        	 head.close();
+	        	 ResultSet tail = stmt.executeQuery( "SELECT substring(ST_AsText(line), '-?[0-9]*\\.?[0-9]*?\\s-?[0-9]*\\.?[0-9]*?,-?[0-9]*\\.?[0-9]*?\\s-?[0-9]*\\.?[0-9]*?\\)$') as line FROM sose2018.lines_admin_2 WHERE index = " + i + ";" );	         
+	        	 while ( tail.next() ) {
+	        		 String line;
+	        		 line = tail.getString("line");
+	        		 String[] strings = line.trim().split(",");
+	        		 for(String s : strings) {
+	        			 Point p = new Point(Double.parseDouble(s.substring(0,s.indexOf(' '))), Double.parseDouble(s.substring(s.indexOf(' ')+1,s.length()-1)));
+	        			 ls.appendTail(p);
+	        		 }		 	                
+	 	         }
+	        	 tail.close();
+	        	 lines.add(ls);
+	         }
+	         
+	         stmt.close();
+	         c.commit();
+	         c.close();
+	      } catch ( Exception e ) {
+	         System.err.println( e.getClass().getName()+": "+ e.getMessage() );
+	         return false;
+	      }
+	      System.out.println("INSERT successful");
+	      return true;
+	}
 	public static double angleBetweenTwoPointsWithFixedPoint(double point1X, double point1Y, 
 	        double point2X, double point2Y, 
 	        double fixedX, double fixedY) {
@@ -276,8 +389,9 @@ public class Main {
 	         stmt = c.createStatement();
 	         for(int i = 0; i < lines.size(); i++) {
 	        	 System.out.println(i + "/" + lines.size());
-		         stmt.executeUpdate( "INSERT INTO sose2018.lines_admin_2(line) VALUES (ST_GeomFromText("+lines.get(i).toPostGIS()+"));" );     
+		         stmt.executeUpdate( "INSERT INTO sose2018.lines_admin_2(index, line) VALUES (" + i + ", ST_GeomFromText("+lines.get(i).toPostGIS()+"));" );     
 	         }
+	         
 	         stmt.close();
 	         c.commit();
 	         c.close();
