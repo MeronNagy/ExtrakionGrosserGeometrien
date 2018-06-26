@@ -1,19 +1,25 @@
 package net.ohdm;
 
+import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Scanner;
 
 /**
  * Main Class containing algorithm for project
  * TODO: rewrite into Methods
  */
-public class Main {
+public class MainCopy {
 	/**
 	 * Runs algorithm
 	 * @param args
@@ -168,19 +174,22 @@ public class Main {
 			Point iHead = line.getHead();
 			Point iTail = line.getTail();
 			int direction = 0;
+			boolean isPolygon = false;
 			for(int j = 0; j < lines.size(); j++) {
 				Point jHead = lines.get(j).getHead();
 				Point jTail = lines.get(j).getTail();
+				if(iHead.equals(iTail)) {
+					System.out.println("polygon");
+					isPolygon = true;
+					break;
+				}
 				if(i != j && !lineChecked[j]) {
 					
 					double newAngle = 362;
-					if(iHead.equals(iTail)) {
-						System.out.println("polygon");
-						break;
-					}
+					
 					
 					if(iHead.equals(jHead)) {
-						Point p1 = line.getLineString().get(1);
+						Point p1 = lines.get(i).getLineString().get(1);
 						Point p2 = lines.get(j).getLineString().get(1);
 						newAngle = angleBetweenTwoPointsWithFixedPoint(p1.getLatitude(), p1.getLongitude(), p2.getLatitude(), p2.getLongitude(), iHead.getLatitude(), iHead.getLongitude());							
 						if(newAngle < 0) {
@@ -193,7 +202,7 @@ public class Main {
 						}	
 					}
 					if(iHead.equals(jTail)) {
-						Point p1 = line.getLineString().get(1);
+						Point p1 = lines.get(i).getLineString().get(1);
 						Point p2 = lines.get(j).getLineString().get(lines.get(j).getLineString().size()-2);
 						newAngle = angleBetweenTwoPointsWithFixedPoint(p1.getLatitude(), p1.getLongitude(), p2.getLatitude(), p2.getLongitude(), iHead.getLatitude(), iHead.getLongitude());
 						if(newAngle < 0) {
@@ -219,19 +228,64 @@ public class Main {
 					line.appendHead(lineJ.getLineString().get(1));
 					line.appendHead(lineJ.getLineString().get(0));
 					linesIndex.add(jIndex);
+				}else {
+					System.out.println("ok?");
+					i++;
 				}
+				
 				i--;
-			}else {
+			
+			}
+			/*else if(!isPolygon){
+				boolean headCloser = false;
+				double distanceToSelf = distanceBetween(line.getHead(), line.getTail());
+				double distanceBetween = distanceToSelf;
+			
+				for(int j = 0; j < lines.size(); j++) {
+					LineString lineJ = lines.get(j);
+					if(i != j && !lineChecked[j]) {
+						double distanceToHead = distanceBetween(line.getHead(), lineJ.getHead());
+						if(distanceToHead < distanceBetween) {
+							distanceBetween = distanceToHead;
+							headCloser = true;
+							jIndex = j;
+						}
+						double distanceToTail = distanceBetween(line.getHead(), lineJ.getTail());
+						if(distanceToTail < distanceBetween) {
+							distanceBetween = distanceToHead;
+							headCloser = false;
+							jIndex = j;
+						}		
+					}
+				}
+				if(distanceToSelf != distanceBetween) {
+					LineString lineJ = lines.get(jIndex);
+					lineChecked[jIndex] = true;
+					if(headCloser) {
+						lineJ.reverseOrder();
+					} 
+					line.appendHead(lineJ.getLineString().get(1));
+					line.appendHead(lineJ.getLineString().get(0));
+					linesIndex.add(jIndex);
+					i--;
+				}else{
+					System.out.println("Ok");
+
+					line.appendHead(line.getTail());
+					linesIndex.add(i);
+					i--;
+				}
+			}*/else {
+		
 				System.out.println(i+1 + "/" + lines.size());
-				uploadPolygon(linesIndex);
+				System.out.println(line.toString());
+				//uploadPolygon(linesIndex, lines);
 				linesIndex.clear();
 				line = null;
+				isPolygon = false;
 				Arrays.fill(lineChecked,false);	
-				//i--;
 			}	
 		}
-		
-		
 		System.out.println("Saving to DB");
 		/* 1. Connect smaller lines to big lines FINISHED
 		 * 2. Delete repeating values
@@ -245,7 +299,7 @@ public class Main {
 		 * 
 		 */
 	}	
-	private static boolean uploadPolygon(ArrayList<Integer> linesIndex) {
+	private static boolean uploadPolygon(ArrayList<Integer> linesIndex, ArrayList<LineString> lines) {
 		Connection c = null;
 	      Statement stmt = null;
 	      try {
@@ -271,14 +325,33 @@ public class Main {
 	        		 stmt.executeUpdate( "INSERT INTO sose2018.polygons_admin_2(index, polygon) "
 	 	        	 		+ "VALUES (" + 	linesIndex.get(0) + ", " + selectLine + ");" );     
 	        	 }else {
+	        		 //linesIndex.get(0) == linesIndex.get(i)
+	        		 if(linesIndex.get(0) == linesIndex.get(i)) {
+	        			 String tail =  ",(SELECT ST_EndPoint(line) FROM sose2018.lines_admin_2 WHERE index = " + linesIndex.get(0) + ")";
+		        		 stmt.executeUpdate( "UPDATE sose2018.polygons_admin_2 SET polygon = ST_AddPoint(" 
+		        				 + selectPolygon + tail +") WHERE index = " + linesIndex.get(0) + ";"); 
+	        		 }else {
+	        			 if(!lines.get(linesIndex.get(i-1)).getHead().equals(lines.get(linesIndex.get(i)).getTail())) {
+	        				 String p1 = "ST_Point(" + lines.get(linesIndex.get(i-1)).getHead().getLongitude() + "," + lines.get(linesIndex.get(i-1)).getHead().getLatitude() + ")";
+	        				 String p2 = "ST_Point(" + lines.get(linesIndex.get(i)).getTail().getLongitude() + "," + lines.get(linesIndex.get(i)).getTail().getLatitude() + ")";
+	        				 String selectLine = ",(ST_MakeLine(" + p1 + "," + p2 + "))";
+			        		 stmt.executeUpdate( "UPDATE sose2018.polygons_admin_2 SET polygon = ST_LineMerge(ST_Collect( "
+			        				 + selectPolygon + selectLine + ")) WHERE index = " + linesIndex.get(0) + ";"); 
+	        			 }else {
+	        				  String selectLine = ",(SELECT line FROM sose2018.lines_admin_2 WHERE index = " + linesIndex.get(i) + ")";
+	        				  stmt.executeUpdate( "UPDATE sose2018.polygons_admin_2 SET polygon = ST_LineMerge(ST_Collect( "
+		        				 + selectPolygon + selectLine + ")) WHERE index = " + linesIndex.get(0) + ";"); 
+	        			 }
+	        			
+	        		 }
 	        		 
-	        		 String selectLine = ",(SELECT line FROM sose2018.lines_admin_2 WHERE index = " + linesIndex.get(i) + ")";
-	        		 stmt.executeUpdate( "UPDATE sose2018.polygons_admin_2 SET polygon = ST_LineMerge(ST_Multi(St_Collect(" 
-	        				 + selectPolygon + selectLine + "))) WHERE index = " + linesIndex.get(0) + ";");
 	        	 }
 	         }
+	         System.out.println();
+	         /*
 	         stmt.executeUpdate( "UPDATE sose2018.polygons_admin_2 SET polygon = ST_BuildArea(" 
     				 + selectPolygon + ") WHERE index = " + linesIndex.get(0) + ";");
+	         */
 	         stmt.close();
 	         c.commit();
 	         c.close();
@@ -360,6 +433,22 @@ public class Main {
 
 	    return angle1 - angle2; 
 	}
+	public static double distanceBetween(Point p1, Point p2) {
+		double lat1 = p1.getLatitude();
+		double lat2 = p2.getLatitude();
+		double lng1 = p1.getLongitude();
+		double lng2 = p2.getLongitude();
+		double earthRadius = 6371000;
+		double dLat = Math.toRadians(lat2-lat1);
+		double dLng = Math.toRadians(lng2-lng1);
+		double a = Math.sin(dLat/2) * Math.sin(dLat/2) + 
+				Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+		        Math.sin(dLng/2) * Math.sin(dLng/2);
+		double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+		
+		return earthRadius * c;
+	}
+
 	public static boolean runQuery(ArrayList<LineString> lines) {
 		Connection c = null;
 	      Statement stmt = null;
