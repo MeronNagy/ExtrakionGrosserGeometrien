@@ -18,7 +18,5 @@ public class Polygon extends LineString{
 		if(this.getTail() != this.getHead()) {
 			this.appendTail(this.getHead());
 		}
-
-	}
-	
+	}	
 }

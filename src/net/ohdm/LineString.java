@@ -13,7 +13,6 @@ public class LineString {
 	private ArrayList<Point> line;
 	private Point head;
 	private Point tail;
-//	private String name;
 	
 	/**
 	 * Constructs a LineString from an ArrayList of Points 
@@ -27,6 +26,9 @@ public class LineString {
 		}else {
 			this.line = new ArrayList<Point>();
 		}
+	}
+	public LineString(LineString lineString) {
+		this(lineString.line);
 	}
 	/**
 	 * Constructs an empty named LineString
@@ -61,22 +63,7 @@ public class LineString {
 		
 	}
 	/*
-	/**
-	 * @return name of LineString
-	 */
-	/*
-	public String getName() {
-		return name;
-	}
 	
-	/**
-	 * @param name to be given to LineString
-	 */
-	/*
-	public void setName(String name) {
-		this.name = name;
-	}
-	*/
 	/**
 	 * @return first Point of LineString
 	 */
@@ -89,9 +76,19 @@ public class LineString {
 	public Point getTail() {
 		return this.tail;
 	}
-	//I recently learned the word prepend which means attach as prefix but I can't be bothered to change it right now :(
-	//But we learned the terms head & tail to describe the first and last element of a list in Algorithem & Datenstrukturen
-	//so it might be easier to understand this way?
+	public Point get(int n) {
+		return line.get(n);
+	}
+	public void remove(int n) {
+		line.remove(n);
+		this.setHeadTail();
+	}
+	public int size() {
+		return line.size();
+	}
+	public int getSize() {
+		return size();
+	}
 	/**
 	 * @param p prepends p to the LineString
 	 */
@@ -191,7 +188,5 @@ public class LineString {
 			return false;
 		}
 		return true;
-		
 	}
-	
 }

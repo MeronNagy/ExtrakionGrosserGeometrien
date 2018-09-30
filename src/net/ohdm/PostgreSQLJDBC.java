@@ -18,7 +18,7 @@ public class PostgreSQLJDBC {
 	 * Connects to the OHDM Database and executes a SQL Query to receive the LineStrings in GeoJSON format and their names from boundaries_admin_2
 	 * The result is saved as "raw.json"
 	 */
-	public static void run() 
+	public static void run(String table) 
 	{
       Connection c = null;
       Statement stmt = null;
@@ -35,11 +35,11 @@ public class PostgreSQLJDBC {
          c = DriverManager
             .getConnection("jdbc:" + database , username, password);
          c.setAutoCommit(false);
-         System.out.println("Opened database successfully");
+         System.out.println("Opened database connection successfully");
          stmt = c.createStatement();
          
-         ResultSet rs = stmt.executeQuery( "SELECT ST_AsGeoJSON(ST_Transform(line, 4326)) as line FROM public.boundaries_admin_2;" );
-         File newTextFile = new File("raw.json");
+         ResultSet rs = stmt.executeQuery( "SELECT ST_AsGeoJSON(ST_Transform(line, 4326)) as line FROM "+ table +";" );
+         File newTextFile = new File("LineStrings.geojson");
          FileWriter fw = new FileWriter(newTextFile);
          while ( rs.next() ) {
         	String line;
@@ -65,5 +65,6 @@ public class PostgreSQLJDBC {
          System.exit(0);
       }
       System.out.println("Operation done successfully");
+      System.out.println("Saved LineStrings as LineStrings.geojson");
    }  
 }
