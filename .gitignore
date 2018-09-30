@@ -1,3 +1,4 @@
 ﻿login.properties
 geoms/
 *.geojson
+*.synctex.gz
