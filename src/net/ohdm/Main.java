@@ -110,9 +110,10 @@ public class Main {
 		schema = sc.next();
 		System.out.print("Input Table: ");
 		table = sc.next();
-		PostgreSQLJDBC.run(schema + "." + table);
+		PostgreSQLJDBC.downloadLineStrings(schema + "." + table);
 		polygonBuilder.getLineStrings("LineStrings.geojson");
 		System.out.println("Imported " + polygonBuilder.lines.size() +" LineStrings from LineStrings.geojson");
+		
 	}
 	
 	/**

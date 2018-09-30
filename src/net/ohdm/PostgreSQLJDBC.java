@@ -18,7 +18,7 @@ public class PostgreSQLJDBC {
 	 * Connects to the OHDM Database and executes a SQL Query to receive the LineStrings in GeoJSON format and their names from boundaries_admin_2
 	 * The result is saved as "raw.json"
 	 */
-	public static void run(String table) 
+	public static void downloadLineStrings(String table) 
 	{
       Connection c = null;
       Statement stmt = null;
@@ -67,4 +67,44 @@ public class PostgreSQLJDBC {
       System.out.println("Operation done successfully");
       System.out.println("Saved LineStrings as LineStrings.geojson");
    }  
+	
+	public static void downloadPolygons(String table) 
+	{
+		Connection c = null;
+	    Statement stmt = null;
+		try {
+			Class.forName("org.postgresql.Driver");
+	        //ohdm_public DB
+	        Properties login = new Properties();
+	        try (FileReader in = new FileReader("login.properties")) {
+	       	    login.load(in);
+	        }
+	        String database = login.getProperty("database");
+	        String username = login.getProperty("username");
+	        String password = login.getProperty("password");
+	        c = DriverManager
+	                 .getConnection("jdbc:" + database , username, password);
+	        c.setAutoCommit(false);
+	        System.out.println("Opened database connection successfully");
+	        stmt = c.createStatement();
+	        stmt.setFetchSize(10);
+	         ResultSet rs = stmt.executeQuery( "SELECT ST_AsGeoJson(ST_BuildArea(polygon)) as polygon FROM " + table + " WHERE ST_BuildArea(polygon) IS NOT NULL;" );
+	         File newTextFile = new File("Polygon.json");
+	         FileWriter fw = new FileWriter(newTextFile); 
+	         while ( rs.next() ) {
+	        	 String polygon;
+	        	 polygon = rs.getString("polygon");
+	        	 fw.write(polygon);
+	        	 fw.append( System.getProperty("line.separator") );
+	         }
+	         fw.close();
+	         rs.close();
+	         stmt.close();
+	         c.close();
+		} catch (Exception e) {
+			System.err.println( e.getClass().getName()+": "+ e.getMessage() );
+	        System.exit(0);
+		}
+      System.out.println("Operation done successfully");
+   }
 }

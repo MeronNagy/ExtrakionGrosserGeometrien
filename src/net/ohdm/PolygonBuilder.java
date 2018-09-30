@@ -64,7 +64,7 @@ public class PolygonBuilder {
 			ls.reverseOrder();
 		}
 		createPolygon(lines.size(), distanceMinuend, maxSize);
-		
+		PostgreSQLJDBC.downloadPolygons(schemaTable);
 	}
 	
 	/**
