@@ -61,7 +61,7 @@
 
 \begin{tabular}{lll}
 \textbf{Eingereicht von:} & & Meron Nagy\flq{}nagy.meron@gmail.com\frq{}\\
-& & Eduard Andreev \flq{}s0\frq{}\\
+& & Eduard Andreev \flq{}s0558738@htw-berlin.de\frq{}\\
 & & \\
 \textbf{Eingereicht am:} & & 28.05.2018\\
 & & \\
@@ -102,7 +102,11 @@ sich die Landesgrenzen der USA vorstellen – die OSM Karten der USA sind sehr f
 Damit ist die Landesgrenze eine Summe einer enormen Menge an einzelnen Teil-Geometrien\cite{rahmen}.
 	\newpage
 \section{Deployment}
-//TODO 
+Das Programm wird über ein Konsolenmenü gesteuert.
+Wenn noch keine login.properties Datei existiert, müssen Datenbank (Bsp.: postgresql://ohm.f4.htw-berlin.de:5432/ohdm_public),  Nutzername und Passwort der OHDM Datenbank eingegeben werden.
+Jetzt können über Menüpunkt 1 die Linestrings heruntergeladen werden. Dafür müssen Schema und Tabellenname angegeben werden. 
+Nachdem die Linestrings heruntergeladen wurden können die Polygone über den Menüpunkt 2 zusammengesetzt werden. Hierfür müssen auch Schema und Zieltabelle angegeben werden.
+Das Ergebnis ist eine Geojsondatei die im Rootverzeichnis des Programms gespeichert wird. Diese kann dann zur Ansicht bei mapshaper.org hochgeladen werden.
 % Hauptteil
 \section{Grundlagen}
 \subsection{PostGIS}
